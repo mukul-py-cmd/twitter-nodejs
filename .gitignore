@@ -1,0 +1,24 @@
+.env
+node_modules
+.idea
+.envrc
+build
+cert
+.vscode
+
+# Elastic Beanstalk Files
+
+.elasticbeanstalk/*
+
+!.elasticbeanstalk/*.cfg.yml
+
+!.elasticbeanstalk/*.global.yml
+
+# Environment files
+.*_smallcase-api
+
+.eslintrc.js
+.nyc_output
+coverage/
+
+.DS_Store
