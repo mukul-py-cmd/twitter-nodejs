@@ -8,14 +8,14 @@ module.exports = function (services, config, utils) {
         register: async (req, res, next) => {
             try {
                 const result = await authValidSchema.validateAsync(req.body);
-                
+
             } catch (error) {
-                res.status(400).json({error: error.details[0].message});
+                return res.status(400).json({ error: error.details[0].message });
             }
 
             bcrypt.hash(req.body.password, 10, async (err, hashedPass) => {
                 if (err) {
-                    res.json({
+                    return res.json({
                         error: err
                     })
                 }
@@ -27,7 +27,7 @@ module.exports = function (services, config, utils) {
                     return res.json(`Account registered for user ${userdoc.username}`);
                 } catch (error) {
                     //console.log(error);
-                    next(error);
+                    return next(error);
                 }
 
             })

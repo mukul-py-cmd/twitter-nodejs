@@ -24,5 +24,22 @@ module.exports = {
             });
         })
 
+    },
+    /*[
+        {Key: 'a.txt'},
+        {Key: 'b.txt'}, == key_array format
+        {Key: 'c.txt'}
+    ]*/
+    deleteMany: function(key_array){
+        var deleteParam = {
+            Bucket: process.env.AWS_STORAGE_BUCKET_NAME,
+            Delete: {
+                Objects: key_array
+            }
+        };    
+        s3.deleteObjects(deleteParam, function(err, data) {
+            // if (err) console.log(err, err.stack);
+            // else console.log('delete', data);
+        });
     }
 }

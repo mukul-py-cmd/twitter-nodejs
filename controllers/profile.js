@@ -1,6 +1,5 @@
 const userAuth = require('../models/user');
 const s3 = require('../helper/aws-s3');
-const { Pricing } = require('aws-sdk');
 const path = require('path');
 //permissions,pp and cover upload and update
 module.exports = function (services, config, utils) {

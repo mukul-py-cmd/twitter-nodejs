@@ -10,11 +10,15 @@ const controllers = require('./controllers')(services, config, utils);
 const routes = require('./routes')(controllers);
 const authenticate = require('./middleware/authenticate');
 const { message } = require('./helper/userauthvalid');
+var helmet = require('helmet');
+
+
 
 
 
 
 //middlewares
+app.use(helmet());
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json({ extended: true }));
 app.use(authenticate);
@@ -28,17 +32,15 @@ app.use(authenticate);
 // })
 
 
-// app.get('/', function (req, res, next) {
-//   const err = new Error('An error occurejd');
-//   err.status = 500;
-//   //return next(err);
-//   return res
-//     .status(200)
-//     .json({ success: 'true', data: 'This was a mistake' });
-// });
+app.get('/', function (req, res, next) {
+  return res
+    .status(200)
+    .json({ success: 'true', data: 'This was a mistake' });
+});
 
 app.use('/auth', routes.auth);
 app.use('/profile', routes.profile);
+app.use('/tweet',routes.tweet);
 
 
 
@@ -53,7 +55,7 @@ app.use((err, req, res, next) => {
     }
     res.status(400).json({ status: 400, message: error_dict });
   } else {
-    res.status(err.status || 500).json({ status: err.status || 500, message: err });
+    res.status(err.status || 500).json({ status: err.status || 500, message: err.message });
   }
 
 });
