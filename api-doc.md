@@ -60,3 +60,28 @@ response
     "followers": 0,
     "following": 0
 }
+
+Tweet post
+//For video key is videolinks. Only one video in a tweet.
+//Can upload maximum of 3 images // content type is multipart/form-data
+var myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI1ZmEwMWNlYzFlOTkxZGU4YmZhZjEwMzQiLCJpYXQiOjE2MDU0NDk1NjksImV4cCI6MTYwNTQ5Mjc2OX0.hS48wZGip6P98HaP4jqArZbrWQaNYr_nSOYmpw_jkaI");
+
+var formdata = new FormData();
+formdata.append("message", "fIESRT");
+formdata.append("author", "5fa95a12ffcf7367a2c9f18a");
+formdata.append("imagelinks", fileInput.files[0], "mukul agarwal.jpg");
+
+var requestOptions = {
+  method: 'POST',
+  headers: myHeaders,
+  body: formdata,
+  redirect: 'follow'
+};
+
+fetch("http://localhost:5000/tweet", requestOptions)
+  .then(response => response.text())
+  .then(result => console.log(result))
+  .catch(error => console.log('error', error));
+
+

@@ -25,7 +25,7 @@ module.exports = function (services, config, utils) {
 
                 //handling media files
                 var awsMediaKeys = [];
-                if (req.files.imagelinks) {
+                if (req.files && req.files.imagelinks) {
                     var uploadFilePromises = [];
                     req.files.imagelinks.forEach((v) => {
                         const fileName = `tweetimage/${uuidv4()}/${path.basename(v.originalname)}`;
@@ -35,7 +35,7 @@ module.exports = function (services, config, utils) {
                     const image_endpoints = await Promise.all(uploadFilePromises);
                     new_tweet.imagelinks = image_endpoints;
                     new_tweet.awsMediaKeys = awsMediaKeys;
-                } else if (req.files.videolinks) {
+                } else if (req.files && req.files.videolinks) {
                     const fileName = `tweetvideo/${uuidv4()}/${path.basename(req.files.videolinks.originalname)}`;
                     awsMediaKeys.push(fileName);
                     const videoendpoint = await s3.upload(fileName, req.files.videolinks.buffer);
@@ -106,17 +106,36 @@ module.exports = function (services, config, utils) {
                 const user_id = req.userid._id;
                 const { message } = req.body;
                 const tweet_id = req.query.tweet_id;
-                tweetModel.update({ $and: [{ _id: tweet_id }, { author: user_id }] }, { $set: { message: message } }, (err, doc) => {
-                    if (err) {
-                        return next(error);
-                    } else {
-                        res.status(200).json(doc);
-                    }
+                var tweet_doc = await tweetModel.findById(tweet_id);
+                if (!tweet_doc) {
+                    const err = new Error('Could not find the tweet.');
+                    err.status = 300;
+                    return next(err);
+                }
 
-
-                });
+                try {
+                    await utils.isOwnerPermission(req, tweet_doc, 'author');
+                } catch (error) {
+                    return next(error);
+                }
+                tweet_doc.message = message;
+                tweet_doc = await tweet_doc.save();
+                var to_return = tweet_doc.toObject();
+                delete to_return.__v;
+                delete to_return.awsMediaKeys;
+                return res.status(200).json({
+                    status: 200,
+                    message: to_return
+                })
+                // tweetModel.update({ $and: [{ _id: tweet_id }, { author: user_id }] }, { $set: { message: message } }, (err, doc) => {
+                //     if (err) {
+                //         return next(err);
+                //     } else {
+                //         res.status(200).json(doc);
+                //     }
+                // });
             } catch (error) {
-                console.log(error);
+                //console.log(error);
                 return next(error);
             }
         },

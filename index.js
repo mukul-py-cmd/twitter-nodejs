@@ -9,15 +9,15 @@ const services = require('./services');
 const controllers = require('./controllers')(services, config, utils);
 const routes = require('./routes')(controllers);
 const authenticate = require('./middleware/authenticate');
-const { message } = require('./helper/userauthvalid');
 var helmet = require('helmet');
-
+var cors = require('cors');
 
 
 
 
 
 //middlewares
+app.use(cors());
 app.use(helmet());
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json({ extended: true }));
