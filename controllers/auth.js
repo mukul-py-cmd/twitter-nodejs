@@ -44,9 +44,13 @@ module.exports = function (services, config, utils) {
                     }
                     if (result) {
                         const token = jwt.sign({ _id: user._id }, process.env.jwt_secret, { expiresIn: '12h' });
+                        var user_info = user.toObject();
+                        delete user_info.password;
+                        delete user_info.__v;
                         return res.json({
                             message: 'login successfull',
-                            token: token
+                            token: token,
+                            user_info
                         })
                     } else {
                         return res.json({
