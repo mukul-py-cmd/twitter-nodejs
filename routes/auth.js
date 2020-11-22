@@ -4,7 +4,7 @@ module.exports = function (controllers) {
         .route('/register')
         .post(controllers.authController.register);
     router
-    .route('/login')
-    .post(controllers.authController.login);
+        .route('/login')
+        .post(controllers.authController.login);
     return router;
 };

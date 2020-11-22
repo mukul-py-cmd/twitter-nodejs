@@ -48,6 +48,7 @@ app.use('/tweet',routes.tweet);
 //error handler
 app.use((err, req, res, next) => {
   //mongoose validation error handler
+  //console.log(err);
   if (err.name === 'ValidationError') {
     var error_dict = {}
     for (var key of Object.keys(err.errors)) {

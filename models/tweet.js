@@ -7,9 +7,11 @@ const tweetSchema = mongoose.Schema({
     message: { type: String, trim: true, maxlength: [400, 'Tweet length must be smaller than 400 characters.'] },
     imagelinks: [String],
     videolinks: String,
-    likes: { type: Number, default: 0 },
+    likescount: { type: Number, default: 0 },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'userAuth', index: true },
-    awsMediaKeys: [String]
+    awsMediaKeys: [String],
+    likes: [{ type: mongoose.Schema.Types.ObjectId, index: true }],
+    commentscount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 tweetSchema.index('updatedAt');

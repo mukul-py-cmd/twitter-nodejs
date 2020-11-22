@@ -27,6 +27,13 @@ module.exports = function (controllers) {
     router
         .route('/')
         .delete(controllers.tweetController.delete_tweet);
+    router
+        .route('/tweet-like')
+        .put(controllers.tweetController.tweet_like);
+    router
+        .route('/tweet-like')
+        .get(controllers.tweetController.get_like_list);
     return router;
+
 };
 

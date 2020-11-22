@@ -6,9 +6,8 @@ const s3 = require('../helper/aws-s3');
 const pagination = require('../helper/pagination');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-//delete media from s3 on updation/deletion of docs.
-//morgan,helmet,cors
-//add pagination
+var createError = require('http-errors');
+
 module.exports = function (services, config, utils) {
     return {
         post: async (req, res, next) => {
@@ -48,6 +47,7 @@ module.exports = function (services, config, utils) {
                 var to_return = new_tweet.toObject();
                 delete to_return.__v;
                 delete to_return.awsMediaKeys;
+                delete to_return.likes;
                 return res.status(200).json({
                     status: 200,
                     message: to_return
@@ -66,6 +66,17 @@ module.exports = function (services, config, utils) {
                 const limit = parseInt(req.query.limit) || 10;
                 var tweets = await pagination.paginate(tweetModel, page, limit, '-__v -awsMediaKeys');
                 const authorid_array = tweets.map((v) => {
+                    //adding whether the user have likes a tweet flag
+                    v.like_flag = false;
+                    if (req.userid) {
+                        for (let i = 0; i < v.likes.length; i++) {
+                            if (req.userid._id == v.likes[i]) {
+                                v.like_flag = true;
+                            }
+                        }
+
+                    }
+                    delete v.likes;
                     return v.author;
                 })
                 const users = await userAuth.find({ _id: { $in: authorid_array } }).select('name username profile.profilePic').lean();
@@ -86,6 +97,19 @@ module.exports = function (services, config, utils) {
                 const page = parseInt(req.query.page) || 1;
                 const limit = parseInt(req.query.limit) || 10;
                 var tweets = await pagination.paginate(tweetModel, page, limit, '-__v -awsMediaKeys', sortBy = { updatedAt: -1 }, filter = { author: req.query.userid });
+                tweets.forEach((v) => {
+                    //console.log(typeof(req.userid._id),typeof(v.likes));
+                    v.like_flag = false;
+                    if (req.userid) {
+                        for (let i = 0; i < v.likes.length; i++) {
+                            if (req.userid._id == v.likes[i]) {
+                                v.like_flag = true;
+                            }
+                        }
+
+                    }
+                    delete v.likes;
+                });
                 //tweetModel.find({ author: req.query.userid }).select('-__v -awsMediaKeys').limit(20).sort({ updatedAt: -1 }).lean();
                 //console.log(tweets);
                 // const authorid_array = tweets.map((v) => {
@@ -123,6 +147,7 @@ module.exports = function (services, config, utils) {
                 var to_return = tweet_doc.toObject();
                 delete to_return.__v;
                 delete to_return.awsMediaKeys;
+                delete to_return.likes;
                 return res.status(200).json({
                     status: 200,
                     message: to_return
@@ -183,6 +208,85 @@ module.exports = function (services, config, utils) {
             } catch (error) {
                 return next(error);
             }
+        },
+        tweet_like: async (req, res, next) => {
+            try {
+                utils.isLoggedIn(req);
+                const { _id: tweet_id, flag } = req.body;
+                if (!tweet_id || !flag) {
+                    return next(createError(400, "Bad request Data missing"));
+                }
+                //flag = 1 in request => like the post // -1 implies unlike the post
+                const tweet_liked_byid = req.userid._id
+                if (flag == 1) {
+
+                    tweetModel.updateOne({ _id: tweet_id, likes: { $nin: tweet_liked_byid } }, { $inc: { likescount: 1 }, $push: { likes: tweet_liked_byid } }, async (err, upd) => {
+                        if (err) {
+                            return next(createError(500, "Internal Server error"));
+                        } else {
+                            if (upd.nModified === 1) {
+                                const tweet_doc = await tweetModel.findById(tweet_id).select('likescount').lean();
+                                return res.status(200).json({
+                                    message: "Like successfull",
+                                    flag: 1,
+                                    tweet_doc
+                                });
+                            } else {
+                                return res.status(200).json({
+                                    message: "Tweet already liked",
+                                    flag: 1
+                                });
+                            }
+                        }
+                    });
+                } else if (flag == -1) {
+                    tweetModel.updateOne({ _id: tweet_id, likes: { $in: tweet_liked_byid } }, { $inc: { likescount: -1 }, $pull: { likes: tweet_liked_byid } }, async (err, upd) => {
+                        if (err) {
+                            return next(createError(500, "Internal Server error"));
+                        } else {
+                            if (upd.nModified === 1) {
+                                const tweet_doc = await tweetModel.findById(tweet_id).select('likescount').lean();
+                                return res.status(200).json({
+                                    message: "UnLike successfull",
+                                    flag: -1,
+                                    tweet_doc
+                                });
+                            } else {
+                                return res.status(200).json({
+                                    message: "Tweet already Unliked",
+                                    flag: -1
+                                });
+                            }
+                        }
+                    });
+                }
+
+            } catch (error) {
+                return next(error);
+            }
+
+        },
+        get_like_list: async (req, res, next) => {
+            try {
+                const { _id, page } = req.query;
+                const paginate_options = {
+                    projections: 'likes',
+                    filter: { _id }
+                }
+                var tweet_likes = await pagination.paginateNew(tweetModel, page, paginate_options);
+                if (tweet_likes.length > 0 && tweet_likes[0].likes.length > 0) {
+                    const users = await userAuth.find({ _id: { $in: tweet_likes[0].likes } }).select('-password -__v').lean();
+                    return res.json(users);
+                } else {
+                    return next(createError(404, "Can not find likes/tweet"));
+                }
+
+            } catch (error) {
+                console.log(error);
+                return next(createError(500, 'Internal server error'));
+            }
+
+
         }
 
     }

@@ -85,3 +85,13 @@ fetch("http://localhost:5000/tweet", requestOptions)
   .catch(error => console.log('error', error));
 
 
+++++++
+username unique error handle // mongoose errors.
+
+
+
+======features
+cloudwatch logger
+image not contained in memory while posting
+comments feature
+notifications for postlikes,comment

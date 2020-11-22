@@ -37,5 +37,28 @@ module.exports = {
 
 
         });
+    },
+    paginateNew: function (model, page = 1, options) {
+        return new Promise(async (resolve, reject) => {
+            const limit = options.limt || 10;
+            const projections = options.projections || '';
+            const sortBy = options.sortBy
+            const filter = options.filter || {};
+
+            var startIndex = Math.max((page - 1) * limit, 0);
+            var query = model.find(filter).select(projections).limit(limit).skip(startIndex).lean();
+            if (sortBy) {
+                query = query.sort(sortBy);
+            }
+            query.exec((err, doc) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(doc);
+                }
+            });
+
+
+        });
     }
 };

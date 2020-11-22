@@ -51,9 +51,9 @@ module.exports = function (services, config, utils) {
         },
         get: async (req, res, next) => {
             try {
-
-                const userDoc = await userAuth.findOne({ username: req.query.username }, 'profile -_id');
-                console.log(userDoc);
+                //console.log("yes")
+                const userDoc = await userAuth.findOne({ username: req.query.username }, 'profile');
+                //console.log(userDoc);
                 if (userDoc) {
                     res.json(userDoc);
                 } else {
