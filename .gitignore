@@ -22,3 +22,4 @@ cert
 coverage/
 
 .DS_Store
+myapp-error.log

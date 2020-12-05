@@ -94,4 +94,10 @@ username unique error handle // mongoose errors.
 cloudwatch logger
 image not contained in memory while posting
 comments feature
-notifications for postlikes,comment
+notifications for post likes,comment
+email/msg/payments
+
+==major
+elastic search || user/content search
+chatbox
+

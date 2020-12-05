@@ -6,6 +6,7 @@ const tweetModel = require('../models/tweet');
 const userAuth = require('../models/user');
 const s3 = require('../helper/aws-s3');
 const pagination = require('../helper/pagination');
+const log = require('../lib/logger');
 
 module.exports = function (services, config, utils) {
   return {
@@ -64,6 +65,7 @@ module.exports = function (services, config, utils) {
     display: async (req, res, next) => {
       // tweet = await tweetModel.find().populate({path:'author',select:'username profile.profilePic'});
       //console.log(tweet)
+      //log({ req, res }, 'info');
       try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;

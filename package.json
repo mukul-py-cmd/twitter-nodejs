@@ -4,7 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run lint && npm run format:check",
+    "lint": "eslint . --ignore-pattern test/",
+    "lint:fix": "eslint . --ignore-pattern test/ --fix",
+    "format": "prettier --write \"./**/*.{js,json}\"",
+    "format:check": "prettier --check \"./**/*.{js,json}\"",
+    "codefix": "npm run lint:fix && npm run format",
     "start:debug": "nodemon index.js"
   },
   "keywords": [],
@@ -15,6 +20,8 @@
     "aws-sdk": "^2.784.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
+    "bunyan": "^1.8.14",
+    "bunyan-cloudwatch": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
@@ -25,6 +32,13 @@
     "mongoose": "^5.10.11",
     "multer": "^1.4.2",
     "nodemon": "^2.0.6",
+    "safe-json-stringify": "^1.2.0",
     "uuid": "^8.3.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.14.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-plugin-import": "^2.22.1",
+    "prettier": "^2.2.0"
   }
 }
