@@ -1,6 +1,4 @@
 const AWS = require('aws-sdk');
-const { resolve } = require('path');
-const routes = require('../routes');
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,

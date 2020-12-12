@@ -7,7 +7,7 @@ module.exports = function (services, config, utils) {
   return {
     register: async (req, res, next) => {
       try {
-        const result = await authValidSchema.validateAsync(req.body);
+        await authValidSchema.validateAsync(req.body);
       } catch (error) {
         return res.status(400).json({ error: error.details[0].message });
       }

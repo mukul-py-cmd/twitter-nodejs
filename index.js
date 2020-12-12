@@ -28,7 +28,7 @@ app.use(authenticate);
 //   res.json("ok");
 // })
 
-app.get('/', async function (req, res) {
+app.get('/', function (req, res) {
   return res.status(200).json({ success: 'true', data: 'This was a mistake' });
 });
 
@@ -37,7 +37,8 @@ app.use('/profile', routes.profile);
 app.use('/tweet', routes.tweet);
 
 //error handler
-app.use((err, req, res) => {
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
   //mongoose validation error handler
   //console.log(err);
 
@@ -54,10 +55,33 @@ app.use((err, req, res) => {
   }
 });
 
+//******mongoose connections */
 mongoose.connect(
   process.env.DB_CONNECTION,
   { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true },
   () => console.log('connected to db')
 );
+mongoose.connection.once('open', function () {
+  console.log('db is connected');
+  //mongoose.connection.close();
+});
+mongoose.connection.once('error', function () {
+  console.log('Error while connecting to mongodb');
+});
+mongoose.connection.on('close', () => {
+  console.log('mongo connection closed');
+});
+
+// process.on('uncaughtException', function (err) {
+//   jsonLogger.logError(err, {
+//     type: 'UNCAUGHT_EXCEPTION',
+//   });
+// });
+
+// process.on('unhandledRejection', (err) => {
+//   jsonLogger.logError(err, {
+//     type: 'UNCAUGHT_EXCEPTION',
+//   });
+// });
 
 app.listen(5000, () => console.log('server listening'));

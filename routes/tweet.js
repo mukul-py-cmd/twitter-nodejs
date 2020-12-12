@@ -19,5 +19,15 @@ module.exports = function (controllers) {
   router.route('/').delete(controllers.tweetController.delete_tweet);
   router.route('/tweet-like').put(controllers.tweetController.tweet_like);
   router.route('/tweet-like').get(controllers.tweetController.get_like_list);
+  router.route('/addcomment').post(controllers.tweetController.addComment);
+  router.route('/editcomment').put(controllers.tweetController.editComment);
+  router
+    .route('/deletecomment')
+    .delete(controllers.tweetController.deleteComment);
+  router.route('/getcomment').get(controllers.tweetController.getComment);
+  router
+    .route('/get-tweet-by-id')
+    .get(controllers.tweetController.getTweetById);
+
   return router;
 };

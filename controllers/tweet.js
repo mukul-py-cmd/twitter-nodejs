@@ -1,7 +1,7 @@
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 var createError = require('http-errors');
-const { message } = require('../helper/userauthvalid');
+const mongoose = require('mongoose');
 const tweetModel = require('../models/tweet');
 const userAuth = require('../models/user');
 const s3 = require('../helper/aws-s3');
@@ -73,7 +73,7 @@ module.exports = function (services, config, utils) {
           tweetModel,
           page,
           limit,
-          '-__v -awsMediaKeys'
+          '-__v -awsMediaKeys -comments'
         );
         const authorid_array = tweets.map((v) => {
           //adding whether the user have likes a tweet flag
@@ -111,7 +111,7 @@ module.exports = function (services, config, utils) {
           tweetModel,
           page,
           limit,
-          '-__v -awsMediaKeys',
+          '-__v -awsMediaKeys -comments',
           (sortBy = { updatedAt: -1 }),
           (filter = { author: req.query.userid })
         );
@@ -144,7 +144,6 @@ module.exports = function (services, config, utils) {
     update_tweet: async (req, res, next) => {
       try {
         utils.isLoggedIn(req);
-        const user_id = req.userid._id;
         const { message } = req.body;
         const tweet_id = req.query.tweet_id;
         var tweet_doc = await tweetModel.findById(tweet_id);
@@ -186,9 +185,7 @@ module.exports = function (services, config, utils) {
         utils.isLoggedIn(req);
         const tweet_id = req.query.tweet_id;
         if (!tweet_id) {
-          const err = new Error('Provide with a tweet id');
-          err.status = 400;
-          return next(err);
+          return next(createError(400, 'Provide with a tweet id'));
         }
         var tweet_doc = await tweetModel.findById(tweet_id);
 
@@ -200,7 +197,7 @@ module.exports = function (services, config, utils) {
             return next(error);
           }
           //First delete tweet =>on success delete aws media too.
-          tweetModel.deleteOne({ _id: tweet_id }, (err, result) => {
+          tweetModel.deleteOne({ _id: tweet_id }, (err) => {
             if (err) {
               return next(err);
             } else {
@@ -237,6 +234,7 @@ module.exports = function (services, config, utils) {
         //flag = 1 in request => like the post // -1 implies unlike the post
         const tweet_liked_byid = req.userid._id;
         if (flag == 1) {
+          //to like the tweet
           tweetModel.updateOne(
             { _id: tweet_id, likes: { $nin: tweet_liked_byid } },
             { $inc: { likescount: 1 }, $push: { likes: tweet_liked_byid } },
@@ -319,6 +317,300 @@ module.exports = function (services, config, utils) {
       } catch (error) {
         console.log(error);
         return next(createError(500, 'Internal server error'));
+      }
+    },
+    addComment: (req, res, next) => {
+      try {
+        utils.isLoggedIn(req);
+        const { _id: tweet_id, parentid, threadlevel } = req.query;
+        const commentorid = req.userid._id;
+        const commentDoc = {
+          commentorid,
+          text: req.body.text,
+          threadlevel,
+          parentid,
+        };
+        const commentUpdateFunction = async function (err, upd) {
+          if (err || upd.nModified !== 1) {
+            console.log(err, upd);
+            return next(createError(500, 'Internal Server error'));
+          } else {
+            if (threadlevel == 1) {
+              //if threadlevel1 updates done in one update would create path conflict
+              await tweetModel.updateOne(
+                {
+                  _id: tweet_id,
+                },
+                {
+                  //$inc: { commentscount: 1, 'comments.$.commentscount': 1 },
+                  $push: { comments: commentDoc },
+                }
+              );
+            }
+            //changenew this return ;
+            tweetModel.findById(tweet_id, (err, doc) => {
+              res.json(doc);
+            });
+          }
+        };
+        //add comment at the right level, increase comment count at both places and return *
+        if (threadlevel == 0) {
+          tweetModel.updateOne(
+            { _id: tweet_id },
+            { $inc: { commentscount: 1 }, $push: { comments: commentDoc } },
+            commentUpdateFunction
+          );
+        } else if (threadlevel == 1) {
+          tweetModel.updateOne(
+            {
+              _id: tweet_id,
+              'comments._id': parentid,
+            },
+            {
+              $inc: { commentscount: 1, 'comments.$.commentscount': 1 },
+              //$push: { comments: commentDoc },
+            },
+            commentUpdateFunction
+          );
+        } else {
+          return next(createError(400, 'Bad data'));
+        }
+      } catch (e) {
+        console.log(e);
+        return next(
+          createError(e.status || 500, e.message || 'Internal server error')
+        );
+      }
+    },
+    editComment: (req, res, next) => {
+      try {
+        utils.isLoggedIn(req);
+        const { _id: tweet_id, commentid } = req.query;
+        const commentorid = req.userid._id;
+        const text = req.body.text.trim();
+        const commentUpdateFunction = function (err, upd) {
+          if (err) {
+            console.log(err);
+            return next(createError(500, 'Internal Server error'));
+          } else {
+            if (upd.nModified === 1) {
+              //console.log(upd);
+              res
+                .status(200)
+                .json({ message: 'comment updated successfully.' });
+            } else {
+              res.status(400).json({ message: 'comment could not be updated' });
+            }
+          }
+        };
+        tweetModel.updateOne(
+          {
+            _id: tweet_id,
+            comments: { $elemMatch: { _id: commentid, commentorid } },
+          },
+          { 'comments.$.text': text },
+          commentUpdateFunction
+        );
+      } catch (e) {
+        console.log(e);
+        return next(
+          createError(e.status || 500, e.message || 'Internal server error')
+        );
+      }
+    },
+    deleteComment: async (req, res, next) => {
+      try {
+        utils.isLoggedIn(req);
+        //rishabh to check in update/delete whether the user is comment owner.
+        const { _id: tweet_id, threadlevel, parentid, commentid } = req.query;
+        const commentorid = req.userid._id;
+        const commentUpdateFunction = function (err, upd) {
+          if (err) {
+            console.log(err);
+            return next(createError(500, 'Internal Server error'));
+          } else {
+            if (upd.nModified === 1) {
+              //updating comments count in parent comment and tweetcommentscount
+              if (threadlevel == 1) {
+                tweetModel
+                  .updateOne(
+                    {
+                      _id: tweet_id,
+                      'comments._id': parentid,
+                    },
+                    {
+                      $inc: {
+                        commentscount: -1,
+                        'comments.$.commentscount': -1,
+                      },
+                    }
+                  )
+                  .exec();
+              }
+              console.log(upd);
+              res
+                .status(200)
+                .json({ message: 'comment deleted successfully.' });
+            } else {
+              res.status(400).json({ message: 'comment could not be deleted' });
+            }
+          }
+        };
+
+        if (threadlevel == 0) {
+          //https://docs.mongodb.com/manual/reference/operator/projection/positional/
+          let commentDoc = await tweetModel
+            .findOne({ _id: tweet_id, 'comments._id': commentid })
+            .select('comments.$ -_id')
+            .lean();
+          //console.log(commentDoc);
+          const commentcount =
+            commentDoc &&
+            commentDoc.comments &&
+            commentDoc.comments[0].commentscount
+              ? commentDoc.comments[0].commentscount
+              : 0;
+          console.log(commentcount);
+          tweetModel.updateOne(
+            {
+              _id: tweet_id,
+              comments: {
+                $elemMatch: { _id: commentid, commentorid, threadlevel },
+              },
+            },
+            {
+              $inc: { commentscount: -1 * commentcount },
+              $pull: {
+                comments: {
+                  $or: [{ _id: commentid }, { parentid: commentid }],
+                },
+              },
+            },
+            commentUpdateFunction
+          );
+        } else if (threadlevel == 1) {
+          tweetModel.updateOne(
+            {
+              _id: tweet_id,
+              comments: {
+                $elemMatch: {
+                  _id: commentid,
+                  commentorid,
+                  threadlevel,
+                  parentid,
+                },
+              },
+            },
+            { $pull: { comments: { _id: commentid } } },
+            commentUpdateFunction
+          );
+        }
+      } catch (e) {
+        console.log(e);
+        return next(
+          createError(e.status || 500, e.message || 'Internal server error')
+        );
+      }
+    },
+    getComment: async (req, res, next) => {
+      try {
+        const tweet_id = mongoose.Types.ObjectId(req.query._id);
+        const commentDoc = await tweetModel.aggregate([
+          { $match: { _id: tweet_id } },
+          { $project: { comments: 1, commentscount: 1 } },
+          { $unwind: '$comments' },
+          // {
+          //   $lookup: {
+          //     from: 'userauths',
+          //     let: {
+          //       commentid: '$comments.commentorid',
+          //       //comments: '$comments',
+          //     },
+          //     pipeline: [
+          //       { $match: { $expr: { $eq: ['$_id', '$$commentid'] } } },
+          //       {
+          //         $project: {
+          //           _id: 0,
+          //           name: 1,
+          //           username: 1,
+          //           profilePic: '$profile.profilePic',
+          //           //'profile.profilePic': 1,
+          //           bio: '$profile.bio',
+          //         },
+          //       },
+          //     ],
+          //     as: 'profile',
+          //   },
+          // },
+          //{ $replaceRoot: { newRoot: { $arrayElemAt: ['$profile', 0] } } },
+          // {
+          //   $project: {
+          //     'comments.comment': '$comments',
+          //     'comments.profile': { $arrayElemAt: ['$profile', 0] },
+          //   },
+          // },
+          // {
+          {
+            $group: {
+              _id: '$comments.parentid',
+              comments: {
+                $push: '$comments',
+              },
+              tweetcommentscount: { $first: '$commentscount' },
+            },
+          },
+        ]);
+        var usermaps = [];
+        commentDoc.forEach((v1) => {
+          v1.comments.forEach((v2) => {
+            usermaps.push(v2.commentorid);
+          });
+        });
+        //console.log(usermaps);
+        const userDoc = await userAuth
+          .find({ _id: { $in: usermaps } })
+          .select('profile.bio profile.profilePic name username')
+          .lean();
+        res.status(200).json({ commentDoc, userDoc });
+      } catch (e) {
+        console.log(e);
+        return next(
+          createError(e.status || 500, e.message || 'Internal server error')
+        );
+      }
+    },
+    getTweetById: (req, res, next) => {
+      try {
+        const { _id: tweetId } = req.query;
+        const userId = req.userid;
+        tweetModel
+          .findById(tweetId, (err, doc) => {
+            if (err) {
+              console.log(err);
+              return next(createError(500, 'Internal server error'));
+            } else {
+              if (userId) {
+                var like;
+                for (like of doc.likes) {
+                  if (like == userId._id) {
+                    doc.like_flag = true;
+                    break;
+                  }
+                }
+              } else {
+                doc.like_flag = false;
+              }
+              delete doc.likes;
+              res.status(200).json(doc);
+            }
+          })
+          .select('-__v -awsMediaKeys -comments')
+          .lean();
+      } catch (e) {
+        console.log(e);
+        return next(
+          createError(e.status || 500, e.message || 'Internal server error')
+        );
       }
     },
   };
