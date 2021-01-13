@@ -35,6 +35,7 @@ app.get('/', function (req, res) {
 app.use('/auth', routes.auth);
 app.use('/profile', routes.profile);
 app.use('/tweet', routes.tweet);
+app.use('/search', routes.esSearch);
 
 //error handler
 // eslint-disable-next-line no-unused-vars
