@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const userEmitter = require('../events/userevents').userEmitter;
 
 const userSchema = mongoose.Schema(
   {
@@ -30,6 +31,25 @@ const userSchema = mongoose.Schema(
   },
   { timestamps: true }
 );
+userSchema.pre('save', function (next) {
+  if (this.isNew) {
+    this.EschangeNew = true;
+  } else if (
+    this.isModified('profile.bio') ||
+    this.isModified('profile.profilePic')
+  ) {
+    this.EschangeModified = true;
+  }
+  next();
+});
+userSchema.post('save', function (doc, next) {
+  next();
+  if (this.EschangeNew) {
+    userEmitter.emit('newUser', doc);
+  } else if (this.EschangeModified) {
+    userEmitter.emit('modifiedUser', doc);
+  }
+});
 
 const userAuth = mongoose.model('userAuth', userSchema);
 module.exports = userAuth;

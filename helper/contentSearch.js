@@ -1,6 +1,6 @@
 const elasticsearch = require('elasticsearch');
-const tweetModel = require('../models/tweet');
 const mongoose = require('mongoose');
+const tweetModel = require('../models/tweet');
 
 var esClient = new elasticsearch.Client({
   host: process.env.esSearchURL,
@@ -27,7 +27,7 @@ esClient.ping(
     } else {
       //getDocs();
       //searchall();
-      dataCreation();
+      //dataCreation();
       console.log('All is well');
     }
   }
@@ -101,3 +101,39 @@ const dataCreation = async function () {
     }
   });
 };
+async function findAndUpdate(doc) {
+  const esResponse = await esClient.search({
+    index: contentsearchindex,
+    q: `tweetId:${doc._id}`,
+    // _source: ['name', 'email'],
+    _source: false,
+  });
+  if (esResponse.hits.total.value === 1) {
+    const mappedDoc = mapDoc(doc);
+    esClient.index({
+      index: contentsearchindex,
+      id: esResponse.hits.hits[0]._id,
+      body: mappedDoc,
+      refresh: true,
+    });
+  }
+}
+async function indexNewTweet(doc) {
+  const mappedDoc = mapDoc(doc);
+  console.log(mappedDoc);
+  esClient.index({
+    index: contentsearchindex,
+    body: mappedDoc,
+    refresh: true,
+  });
+}
+function mapDoc(doc) {
+  return {
+    message: doc.message,
+    author: doc.author,
+    tweetId: doc._id,
+    lastUpdated: doc.updatedAt,
+  };
+}
+exports.findAndUpdate = findAndUpdate;
+exports.indexNewTweet = indexNewTweet;

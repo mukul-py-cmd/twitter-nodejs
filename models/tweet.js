@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const tweetEmitter = require('../events/tweetevents').tweetEmitter;
 //const userAuth = require('./user');
 
 //add two fields in author field and the use of ref when not using populate
@@ -57,5 +58,23 @@ tweetSchema.methods.toJSON = function() {
  return obj;
 }
 */
+tweetSchema.pre('save', function (next) {
+  //updatedat changes at every modification.. for es we need reindexing only when message changes
+  if (this.isNew) {
+    this.EschangeNew = true;
+  } else if (this.isModified('message')) {
+    this.EschangeModified = true;
+  }
+  next();
+});
+tweetSchema.post('save', function (doc, next) {
+  next();
+  if (this.EschangeNew) {
+    //userEmitter.emit('newUser', doc);
+    tweetEmitter.emit('newTweet', doc);
+  } else if (this.EschangeModified) {
+    tweetEmitter.emit('modifiedTweet', doc);
+  }
+});
 const tweetModel = mongoose.model('tweetModel', tweetSchema);
 module.exports = tweetModel;
